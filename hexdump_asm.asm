@@ -27,9 +27,6 @@ SECTION .text
 global _start
 
 _start:
-
-    mov rbp, rsp                                ; For correct debugging
-
     mov rax, [rsp]                              ; Copy argc into rax
 
     ; Check if a filename was passed
