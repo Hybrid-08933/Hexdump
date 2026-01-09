@@ -1,5 +1,14 @@
-build/hexdump_asm: build/hexdump_asm.o
+# Final exectuable name
+TARGET_EXEC := hexdump
+
+# Build directory
+BUILD_DIR 	:= ./build
+
+# Source files directory
+SRCS_DIR 	:= ./src
+
+$(BUILD_DIR)/$(TARGET_EXEC): $(BUILD_DIR)/hexdump_asm.o
 	ld -o $@ $<
 
-build/hexdump_asm.o: hexdump_asm.asm
+$(BUILD_DIR)/hexdump_asm.o: $(SRCS_DIR)/hexdump_asm.asm
 	nasm -f elf64 -g -o $@ $<
