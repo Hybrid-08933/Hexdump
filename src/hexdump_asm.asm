@@ -156,7 +156,7 @@ check_char_count:
 print_ascii:
     cmp CHAR_COUNT, BUFF_OFF                    ; If 16 character have been printed
     je print_newline                            ; print a newline
-    
+
     mov al, [buff + CHAR_COUNT]                 ; Store current character into al
 
     cmp al, 0x20                                ; If character is below ' '
@@ -164,7 +164,7 @@ print_ascii:
 
     cmp al, 0x7F                                ; If character is below DEL
     jb print_char                               ; print it
-    
+
     ; Otherwise execution falls through and prints a dot for DEL
 
 
