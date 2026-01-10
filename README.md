@@ -12,7 +12,7 @@ The utility reads files in fixed-size chunks and displays their contents in **he
 
 * Written in **x86_64 assembly** using **NASM** and linked with **GNU Linker**
 * Uses **Linux syscalls** (`sys_open`, `sys_read`, `sys_write`, `sys_exit`) for file operations
-* Reads files in **512-byte chunks** for efficient processing
+* Reads files in **64-Kilobyte chunks** for efficient processing
 * Prints **hexadecimal bytes and printable ASCII characters side by side**, including the filename
 * Exits cleanly at **EOF**
 * Handles **basic error checking** for missing filename input
