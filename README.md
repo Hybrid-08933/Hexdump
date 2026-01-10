@@ -38,7 +38,7 @@ sample.txt:
 
   1. Accepting a **filename** as a command-line argument
   2. Opening the file with **sys_open**
-  3. Reading the file in **512-byte chunks** using **sys_read**
+  3. Reading the file in **64-Kilobyte chunks** using **sys_read**
   4. Printing the **hex bytes and ASCII characters side by side** with **sys_write**
   5. Repeating until EOF, then closing the file and exiting with **sys_exit**
 
@@ -79,8 +79,8 @@ Through this project, I learned:
 ## Future Improvements
 
 * Add a offset column
-* Use buffered output
-* Use a translation table instead of bit-shifting to convert binary to hex
+* ~~Use buffered output~~ Done
+* ~~Use a translation table instead of bit-shifting to convert binary to hex~~ Done
 * Handle potential syscall errors
 * Use SIMD instructions to parallize processing (advanced)
 
