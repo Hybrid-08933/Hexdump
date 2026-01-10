@@ -7,14 +7,15 @@ default rel
 %define HEX_DELIM           0x20                ; Delimiter between hex chars
 %define HEX_DELIM_NUM       0x1                 ; Number of delims between chars
 %define COLUMN_DELIM_NUM    0x4                 ; Number of delims between cloumns
+; Calculate size of buff_out based on other params
 %define BUFF_OUT_LEN        ((BUFF_LEN * 0x3) + ((BUFF_LEN / 0x10) * (HEX_PER_LINE + COLUMN_DELIM_NUM)))
 
 ; Define registers for holding bytes read, argc, argv, etc
-%define BYTES_READ      rbx                     ; RBX - Return value of sys_read
+%define BYTES_READ          rbx                 ; RBX - Return value of sys_read
 ; R12 - Reserved for byte offset column
-%define BUFF_OFF        r13                     ; R13 - Buff offset
-%define BUFF_OUT_OFF    r14                     ; R14 - Output buffer offset
-%define CHAR_COUNT      r15                     ; R15 - Number of characters printed so far
+%define BUFF_OFF            r13                 ; R13 - Buff offset
+%define BUFF_OUT_OFF        r14                 ; R14 - Output buffer offset
+%define CHAR_COUNT          r15                 ; R15 - Number of characters printed so far
 ;
 
 SECTION .data
