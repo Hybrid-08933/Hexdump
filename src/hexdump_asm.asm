@@ -22,8 +22,8 @@ SECTION .data
     err_msg: db "Usage: hexdump_asm file",0xA   ; Error msg for incorrect usage of program
     err_msg_len: equ $-err_msg                  ; Error msg length
     col_nl: db ":",0xA                          ; A colon and new line
-    space: db "    "                            ; 4 spaces and a dot
-    hex_table:                                  ; Make a lookup table for hex values
+    space: db "    "                            ; 4 spaces
+    hex_table:                                  ; Lookup table for hex values
         dw 0x3030, 0x3130, 0x3230, 0x3330, 0x3430, 0x3530, 0x3630, 0x3730,
         dw 0x3830, 0x3930, 0x4130, 0x4230, 0x4330, 0x4430, 0x4530, 0x4630,
         dw 0x3031, 0x3131, 0x3231, 0x3331, 0x3431, 0x3531, 0x3631, 0x3731,
@@ -56,7 +56,7 @@ SECTION .data
         dw 0x3845, 0x3945, 0x4145, 0x4245, 0x4345, 0x4445, 0x4545, 0x4645,
         dw 0x3046, 0x3146, 0x3246, 0x3346, 0x3446, 0x3546, 0x3646, 0x3746,
         dw 0x3846, 0x3946, 0x4146, 0x4246, 0x4346, 0x4446, 0x4546, 0x4646
-    ascii_table:                                ; Lookup table to convert byte to ascii
+    ascii_table:                                ; Lookup table for ascii
         db 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
         db 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
         db 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
@@ -114,7 +114,7 @@ filename_len:
 ; Length counting loop
 filename_len_loop:
     inc rdx                                     ; Keep count of arg length
-    cmp BYTE [rax + rdx], 0x0                   ; Compare till Null Terminator
+    cmp BYTE [rax + rdx], 0x0                   ; Compare till null terminator
     jne filename_len_loop                       ; is encountered
 
 
@@ -125,7 +125,6 @@ print_filename:
     mov rdi, 0x1                                ; Specify STDOUT
     mov rsi, FILENAME_ADDR                      ; Specify address of argv[1]
                                                 ; Length of argv[1] was calculated in filename_len
-                                                ; into rdx
     syscall                                     ; Call sys_write
 
     ; Print a colon and newline after it
@@ -139,7 +138,7 @@ print_filename:
 ; Open the filename passed to the program
 open_file:
     mov rax, 0x2                                ; Specify sys_open
-    mov rdi, FILENAME_ADDR                      ; Specifyl address of the filename
+    mov rdi, FILENAME_ADDR                      ; Specify address of the filename
     mov rsi, 0x0                                ; Specify opening flags 0x0: Read Only
     syscall                                     ; Call sys_open
 
@@ -148,7 +147,7 @@ open_file:
 
 ; Read the file into a buffer
 read_file:
-    mov rax, 0x0                                ; Specify sys_read
+    xor rax, rax                                ; Specify sys_read
     pop rdi                                     ; Pop FD from stack into rdi
     mov rsi, buff                               ; Specify buffer address to read into
     mov rdx, BUFF_LEN                           ; Specify length of the buffer
@@ -169,7 +168,7 @@ read_file:
     mov BYTES_READ, rax                         ; Save number of bytes read by sys_read
 
     cmp BYTES_READ, 0x10                        ; If less than 16 bytes read
-    jb print_hex_tail
+    jb print_hex_tail                           ; Jump to tail process
 
 
 ; Print the raw bytes in the file as hex values
@@ -177,7 +176,7 @@ print_hex:
     movzx rax, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
     lea rsi, [hex_table + rax * 2]              ; Lookup its address in hex_table
 
-    movzx rax, WORD [rsi]                       ; Copy it into rax
+    movzx rax, WORD [rsi]                       ; Zero extend rax and copy it into rax
     mov [buff_out + BUFF_OUT_OFF], ax           ; Write it to buff_out
     add BUFF_OUT_OFF, 0x2                       ; Move BUFF_OUT_OFF ahead by 2 bytes
 
@@ -188,7 +187,7 @@ print_hex:
 ; Print characters if 16 hex values have been printed
 check_char_count:
     cmp CHAR_COUNT, 0x10                        ; If 16 characters have been printed
-    je print_padding                            ; If not skip printing characters
+    je print_padding                            ; print padding
 
     mov rax, HEX_DELIM                          ; Move a ' ' into rax
     mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
@@ -204,7 +203,7 @@ print_ascii:
 
     movzx rax, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
     lea rax, [ascii_table + rax]                ; Lookup address of current character in ascii_table
-    mov al, [rax]                               ; Copy it into rax
+    mov al, [rax]                               ; Copy it into al
     mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
@@ -217,19 +216,19 @@ print_ascii:
 ; and jump to read_file if all bytes have been printed
 ; otherwise jump back to print_hex
 print_newline:
-    movzx rax, BYTE [col_nl+0x1]                ; Move '\n' into al
+    movzx rax, BYTE [col_nl+0x1]                ; Zero extend rax and move '\n' into rax
     mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     sub BYTES_READ, 0x10                        ; Subtract 16 from number of bytes read
 
-    test BYTES_READ, BYTES_READ                 ; Check if buff offset has reached number of
-    jz flush_buff                               ; bytes read and slurp more bytes if it has
+    test BYTES_READ, BYTES_READ                 ; Test if all bytes have been processed
+    jz flush_buff                               ; Print buff_out if they have been
 
     cmp BYTES_READ, 0x10                        ; Jump to tail process if less than 16
     jb print_hex_tail                           ; bytes left
 
-    xor CHAR_COUNT, CHAR_COUNT
+    xor CHAR_COUNT, CHAR_COUNT                  ; Reset CHAR_COUNT
 
     jmp print_hex                               ; Jump back to printing hex characters
 
@@ -239,12 +238,11 @@ print_padding:
     sub CHAR_COUNT, BUFF_OFF                    ; Subtract buff offset from char count
     neg CHAR_COUNT                              ; Negate the result so char count can be used as the offset
 
-    movzx rsi, DWORD [space]                    ; Zero extend rsi and move '    ' into esi
-    ; This won't compile unless its a movzx
-    mov [buff_out + BUFF_OUT_OFF], esi
-    add BUFF_OUT_OFF, 0x4
+    movzx rsi, DWORD [space]                    ; Zero extend rsi and move '    ' into rsi
+    mov [buff_out + BUFF_OUT_OFF], esi          ; Write it to buff_out
+    add BUFF_OUT_OFF, 0x4                       ; Move BUFF_OUT_OFF by 4 bytes
 
-    jmp print_ascii
+    jmp print_ascii                             ; Jump back to print_ascii
 
 
 ; Close the file as good programmers should
@@ -286,9 +284,9 @@ print_hex_tail:
 
 ; Print characters if 16 hex values have been printed
 check_char_count_tail:
-    je print_padding_tail                       ; If BUFF_OFF is 0 print padding
+    je print_padding_tail                       ; If BYTES_READ is 0 print padding
 
-    mov rax, HEX_DELIM                          ; Move a ' ' into rax
+    mov rax, HEX_DELIM                          ; Move ' ' into rax
     mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
@@ -297,21 +295,21 @@ check_char_count_tail:
 
 ; Prints padding and sets up char count so it can be used as the buff offset
 print_padding_tail:
-    mov rax, BUFF_OFF                           ; Store BUFF_OFF in r12
+    mov rax, BUFF_OFF                           ; Store BUFF_OFF in rax
     sub rax, CHAR_COUNT                         ; Subtract CHAR_COUNT to get required padding count
     sub rax, 0x10                               ; Subtract 16 from it
     neg rax                                     ; Negate it
 
-    movzx rsi, DWORD [space]                    ; Zero extend rsi and move '    ' into esi
+    movzx rsi, DWORD [space]                    ; Zero extend rsi and move '    ' into rsi
 
     mov [buff_out + BUFF_OUT_OFF], esi          ; Write it to buff_out
-    add BUFF_OUT_OFF, 0x4
+    add BUFF_OUT_OFF, 0x4                       ; Move BUFF_OUT_OFF ahead by 4 bytes
 
 
 ; The loop to print spaces
 padding_loop_tail:
     mov [buff_out + BUFF_OUT_OFF], esi          ; Write it to buff_out
-    add BUFF_OUT_OFF, 0x3                       ; Move BUFF_OUT_OFF ahead by 4 bytes
+    add BUFF_OUT_OFF, 0x3                       ; Move BUFF_OUT_OFF ahead by 3 bytes
 
     dec rax                                     ; Decrement rax
 
@@ -322,14 +320,14 @@ padding_loop_tail:
 print_ascii_tail:
     movzx rax, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
     lea rax, [ascii_table + rax]                ; Lookup address of current character in ascii_table
-    mov al, [rax]                               ; Copy it into rax
+    mov al, [rax]                               ; Copy it into al
     mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     inc CHAR_COUNT                              ; Point to next character
 
-    cmp CHAR_COUNT, BUFF_OFF
-    jnz print_ascii_tail                        ; Jump back to process more characters
+    cmp CHAR_COUNT, BUFF_OFF                    ; If theres still characters left to
+    jnz print_ascii_tail                        ; print jump back to print_ascii_tail
 
 
 print_newline_tail:
@@ -337,7 +335,7 @@ print_newline_tail:
     mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
-    jmp flush_buff                              ; bytes read and slurp more bytes if it has
+    jmp flush_buff                              ; Print buff_out
 
 
 ; If no file was specified, print an example of how the
