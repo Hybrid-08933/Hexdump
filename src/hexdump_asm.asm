@@ -1,14 +1,19 @@
 default rel
 
 ; Define some macros
-%define FILENAME_ADDR   [rsp + 0x10]            ; Address of argv[1]
-%define BUFF_LEN        0x10000                 ; Length of file buffer
+%define FILENAME_ADDR       [rsp + 0x10]        ; Address of argv[1]
+%define BUFF_LEN            0x10000             ; Length of file buffer
+%define HEX_PER_LINE        0x10                ; Number of hex chars per line
+%define HEX_DELIM           0x20                ; Delimiter between hex chars
+%define HEX_DELIM_NUM       0x1                 ; Number of delims between chars
+%define COLUMN_DELIM_NUM    0x4                 ; Number of delims between cloumns
+%define BUFF_OUT_LEN        ((BUFF_LEN * 0x3) + ((BUFF_LEN / 0x10) * (HEX_PER_LINE + COLUMN_DELIM_NUM)))
 
 ; Define registers for holding bytes read, argc, argv, etc
 %define BYTES_READ      rbx                     ; RBX - Return value of sys_read
 ; R12 - Reserved for byte offset column
 %define BUFF_OFF        r13                     ; R13 - Buff offset
-%define BUFF_OUT_OFF    r14                     ; R14 - Maybe will be used for output buffer offset
+%define BUFF_OUT_OFF    r14                     ; R14 - Output buffer offset
 %define CHAR_COUNT      r15                     ; R15 - Number of characters printed so far
 ;
 
@@ -54,7 +59,7 @@ SECTION .data
 
 SECTION .bss
     buff: resb BUFF_LEN                         ; A buffer to hold files
-    buff_out: resb 278528                       ; A buffer to hold output
+    buff_out: resb BUFF_OUT_LEN                 ; A buffer to hold output
 
 SECTION .text
 
@@ -125,56 +130,19 @@ read_file:
     xor BUFF_OFF, BUFF_OFF
     xor CHAR_COUNT, CHAR_COUNT
     xor BYTES_READ, BYTES_READ
+    xor BUFF_OUT_OFF, BUFF_OUT_OFF
     ;
 
     mov BYTES_READ, rax                         ; Save number of bytes read by sys_read
 
-    mov BUFF_OUT_OFF, buff_out                  ; Set r14 to buff_out
-
 
 ; Print the raw bytes in the file as hex values
-; ---How though---
-; First rotate transforms the register as follows:
-; Ex: 00000000 00000000 ... 01001000 'H'
-;         0        1            7
-; To: 10000000 00000000 ... 00000100 0x4
-;         0        1            7
-; giving us the higher 4 bits which can be used as
-; a offset in the lookup table
-; Second rotate restores the original register
-; and then the AND masks the higher 4 bits
-; giving us the lower 4 bits
-; Perhaps theres a better way of doing this
-; Writing the characters into a buffer and then
-; printing the entire buffer to screen is the only
-; better way I can think of, so buffered O of the I/O
 print_hex:
-;    mov rax, 0x1                                ; Specify sys_write
-;    mov rdi, 0x1                                ; Specify STDOUT
-;    mov rsi, hex_digits                         ; Specify hex digits
-;    mov r14b, [buff + BUFF_OFF]                 ; Copy the current character into r14b
-;    ror r14, 4                                  ; Rotate r14 by 4 bits
-;    add sil, r14b                               ; Add the resulting number to rsi
-;    mov rdx, 0x1                                ; Only have one byte to print
-;    syscall                                     ; Call sys_write
-;
-;    mov rax, 0x1                                ; Specify sys_write
-;    mov rdi, 0x1                                ; Specify STDOUT
-;    mov rsi, hex_digits                         ; Specify hex digits
-;    rol r14, 4                                  ; Rotate r14 back into its original state
-;    and r14b, 0x0F                              ; AND r14 with this mask
-;    add sil, r14b                               ; Add the resulting number to rsi
-;    mov rdx, 0x1                                ; Only have one byte to print
-;    syscall                                     ; Call sys_write
-
-    mov al,  [buff + BUFF_OFF]                  ; Copy current character into al
+    mov al, [buff + BUFF_OFF]                   ; Copy current character into al
     lea rsi, [hex_table + rax * 2]              ; Lookup its hex representation
-;    mov rax, 0x1                                ; Specify sys_write
-;    mov rdi, 0x1                                ; Specify STDOUT
-;    mov rdx, 0x2                                ; Print 2 bytes
-;    syscall                                     ; Call sys_write
-    mov ax, WORD [rsi]
-    mov [BUFF_OUT_OFF], ax
+
+    mov ax, WORD [rsi]                          ; Move it into ax
+    mov [buff_out + BUFF_OUT_OFF], ax           ; Write it to buff_out
     add BUFF_OUT_OFF, 0x2                       ; Move BUFF_OUT_OFF ahead by 2 bytes
 
     inc BUFF_OFF                                ; Increment the character offset
@@ -189,15 +157,10 @@ check_char_count:
     cmp CHAR_COUNT, 0x10                        ; If 16 characters have been printed
     je print_padding                            ; If not skip printing characters
 
-;    mov rax, 0x1                                ; Specify sys_write
-;    mov rdi, 0x1                                ; Specify STDOUT
-;    mov rsi, space                              ; Specify spaces
-;    mov rdx, 0x1                                ; Two spaces
-;    syscall                                     ; Call sys_write
-    xor rax, rax
-    mov al, 0x20
-    mov [BUFF_OUT_OFF], al
-    inc BUFF_OUT_OFF
+    xor rax, rax                                ; Zero out any data in rax
+    mov al, HEX_DELIM                           ; Move a ' ' into al
+    mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
+    inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     jmp print_hex                               ; Jump back to print_hex
 
@@ -220,14 +183,9 @@ print_ascii:
 
 ; Print a dot for non printable characters
 print_dot:
-;    mov rax, 0x1                                ; Specify sys_write
-;    mov rdi, 0x1                                ; Specify STDOUT
-;    mov rsi, space+0x4                          ; Print 5th byte in space
-;    mov rdx, 0x1                                ; Just one byte
-;    syscall                                     ; Call sys_write
-    mov al, BYTE [space + 0x4]
-    mov [BUFF_OUT_OFF], al
-    inc BUFF_OUT_OFF
+    mov al, BYTE [space + 0x4]                  ; Move '.' into al
+    mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
+    inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     inc CHAR_COUNT                              ; Point to next character
 
@@ -236,17 +194,10 @@ print_dot:
 
 ; Print the ascii character
 print_char:
-;    mov rax, 0x1                                ; Specify sys_write
-;    mov rdi, 0x1                                ; Specify STDOUT
-;    mov rsi, buff                               ; Specify buffer and add char count
-;    add rsi, CHAR_COUNT                         ; to it so it points to the correct char
-;    mov rdx, 0x1                                ; Print one character
-;    syscall                                     ; Call sys_write
-
-    lea rsi, [buff + CHAR_COUNT]
-    mov al, BYTE [rsi]
-    mov [BUFF_OUT_OFF], al
-    inc BUFF_OUT_OFF
+    lea rsi, [buff + CHAR_COUNT]                ; Load address of current character into rsi
+    mov al, BYTE [rsi]                          ; Move it into al
+    mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
+    inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     inc CHAR_COUNT                              ; Point to next character
 
@@ -257,14 +208,9 @@ print_char:
 ; and jump to read_file if all bytes have been printed
 ; otherwise jump back to print_hex
 print_newline:
-;    mov rax, 0x1                                ; Specify sys_write
-;    mov rdi, 0x1                                ; Specify STDOUT
-;    mov rsi, col_nl+0x1                         ; Specify nl
-;    mov rdx, 0x1                                ; Just need to print two spaces
-;    syscall                                     ; Call sys_write
-    mov al, BYTE [col_nl+0x1]
-    mov [BUFF_OUT_OFF], al
-    inc BUFF_OUT_OFF
+    mov al, BYTE [col_nl+0x1]                   ; Move '\n' into al
+    mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
+    inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     cmp CHAR_COUNT, BYTES_READ                  ; Check if buff offset has reached number of
     je flush_buff                               ; bytes read and slurp more bytes if it has
@@ -278,25 +224,24 @@ print_newline:
 print_padding:
     mov rax, 0x11                               ; Store 17 in r12
     sub rax, CHAR_COUNT                         ; Subtract char count to get required padding count
+
     sub CHAR_COUNT, BUFF_OFF                    ; Subtract buff offset from char count
     neg CHAR_COUNT                              ; Negate the result so char count can be used as the offset
-    mov esi, dword [space]
+
+    mov esi, dword [space]                      ; Move '    ' into esi
 
 ; The loop to print spaces
 padding_loop:
-;    mov rax, 0x1                                ; Specify sys_write
-;    mov rdi, 0x1                                ; Specify STDOUT
-;    mov rsi, space                              ; Specify space
-;    mov rdx, 0x4                                ; 4 spaces
-;    syscall                                     ; Call sys_write
-    mov [BUFF_OUT_OFF], esi
-    add BUFF_OUT_OFF, 0x4
+    mov [buff_out + BUFF_OUT_OFF], esi          ; Write it to buff_out
+    add BUFF_OUT_OFF, 0x4                       ; Move BUFF_OUT_OFF ahead by 4 bytes
 
     dec rax                                     ; Decrement rax
 
-    jne padding_loop                            ; keep printing till rax is 0
+    jz print_ascii                              ; Jump Back to print_ascii if there were 16 chars
 
-    jmp print_ascii                             ; Jump back to print_chars if rax is 0
+    dec BUFF_OUT_OFF                            ; Decrement BUFF_OUT_OFF as theres only one space between hex chars
+
+    jmp padding_loop                            ; Jump back to padding_loop
 
 
 ; Close the file as good programmers should
@@ -313,13 +258,15 @@ exit:
     syscall                                     ; Call sys_exit
 
 
+; Print buff_out to STDOUT once its filled
 flush_buff:
-    mov rax, 0x1
-    mov rdi, 0x1
-    mov rsi, buff_out
-    mov rdx, 278528
-    syscall
-    jmp read_file
+    mov rax, 0x1                                ; Specify sys_write
+    mov rdi, 0x1                                ; Specify STDOUT
+    mov rsi, buff_out                           ; Load address of buff_out
+    mov rdx, BUFF_OUT_OFF                       ; Specify number of bytes written to buff_out
+    syscall                                     ; Call sys_write
+
+    jmp read_file                               ; Call sys_write
 
 
 ; If no file was specified, print an example of how the
