@@ -171,7 +171,7 @@ read_file:
 
 ; Print the raw bytes in the file as hex values
 print_hex:
-    mov rcx, 0x10
+    mov rcx, 0x10                               ; Use rcx as counter
 .loop:
     movzx rax, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
     lea rsi, [hex_table + rax * 2]              ; Lookup its address in hex_table
@@ -185,8 +185,8 @@ print_hex:
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     inc BUFF_OFF                                ; Increment the character offset
-    dec rcx
-    jnz .loop
+    dec rcx                                     ; Decrement counter
+    jnz .loop                                   ; Keep looping till its zero
 
 
 ; Print padding
@@ -198,11 +198,8 @@ print_padding:
 
 ; Print characters
 print_ascii:
-    mov rcx, 0x10
+    mov rcx, 0x10                               ; Use rcx as counter
 .loop:
-;    cmp CHAR_COUNT, BUFF_OFF                    ; If 16 character have been printed
-;    je print_newline                            ; print a newline
-
     movzx rax, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
     lea rax, [ascii_table + rax]                ; Lookup address of current character in ascii_table
     mov al, [rax]                               ; Copy it into al
@@ -210,8 +207,8 @@ print_ascii:
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     inc CHAR_COUNT                              ; Point to next character
-    dec rcx
-    jnz .loop                                   ; Jump back to process more characters
+    dec rcx                                     ; Decrement counter
+    jnz .loop                                   ; Keep looping till its zero
 
 
 ; Print a newline after characters have been printed
@@ -229,7 +226,6 @@ print_newline:
 
     cmp BYTES_READ, 0x10                        ; Jump to tail process if less than 16
     jb print_hex_tail                           ; bytes left
-
 
     jmp print_hex                               ; Jump back to printing hex characters
 
