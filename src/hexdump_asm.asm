@@ -2,13 +2,14 @@ default rel
 
 ; Define some macros
 %define FILENAME_ADDR       [rsp + 0x10]        ; Address of argv[1]
+%define FILE_SIZE_OFF       0x30                ; Offset for file size in struct stat
 %define BUFF_LEN            0x10000             ; Length of file buffer
 %define HEX_PER_LINE        0x10                ; Number of hex chars per line
 %define HEX_DELIM           0x20                ; Delimiter between hex chars
 %define HEX_DELIM_NUM       0x1                 ; Number of delims between chars
 %define COLUMN_DELIM_NUM    0x4                 ; Number of delims between cloumns
 ; Calculate size of buff_out based on other params
-%define BUFF_OUT_LEN        ((BUFF_LEN * 0x3) + ((BUFF_LEN / 0x10) * (HEX_PER_LINE + COLUMN_DELIM_NUM)))
+%define BUFF_OUT_LEN        ((BUFF_LEN * 0x3) + ((BUFF_LEN / 0x10)  * (HEX_PER_LINE + COLUMN_DELIM_NUM)))
 
 ; Define registers for holding bytes read, argc, argv, etc
 %define BYTES_READ          rbx                 ; RBX - Return value of sys_read
@@ -91,8 +92,9 @@ SECTION .data
         db 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E
 
 SECTION .bss
-    buff: resb BUFF_LEN                         ; A buffer to hold files
+    ;buff: resb BUFF_LEN                         ; A buffer to hold files
     buff_out: resb BUFF_OUT_LEN                 ; A buffer to hold output
+    stat_buff: resb 144                        ; Buffer to hold struct stat
 
 SECTION .text
 
@@ -140,30 +142,39 @@ open_file:
     xor rsi, rsi                                ; Specify opening flags 0x0: Read Only
     syscall                                     ; Call sys_open
 
-    push rax                                    ; Save the fd returned by sys_open
+    mov r12, rax                                ; Save the fd returned by sys_open
 
 
-; Read the file into a buffer
-read_file:
-    xor rax, rax                                ; Specify sys_read
-    pop rdi                                     ; Pop FD from stack into rdi
-    lea rsi, buff                               ; Specify buffer address to read into
-    mov rdx, BUFF_LEN                           ; Specify length of the buffer
-    syscall                                     ; Call sys_read
+; Get the file's size
+file_size:
+    mov rax, 0x5                                ; Specify sys_fstat
+    mov rdi, r12                                ; Specify FD
+    mov rsi, stat_buff                          ; Specify buffer to hold file info
+    syscall                                     ; Call sys_fstat
 
-    test rax, rax                               ; Empty file?
-    jz close_file                               ; Close file and exit
+    mov BYTES_READ, QWORD [stat_buff + FILE_SIZE_OFF] ; Save file size
 
-    push rdi                                    ; Store FD back onto the stack
 
-    ; Zero out all the counting registers
+; Map the file into memory
+map_file:
+    mov rax, 0x9                                ; Specify sys_mmap
+    xor rdi, rdi                                ; Set addr to null
+    mov rsi, BYTES_READ                         ; Specify file size
+    mov rdx, 0x1                                ; Specify mapping protection
+    mov r10, 0x2                                ; Specify mapping flags, 0x2: Private mapping
+    mov r8, r12                                 ; Specify file fd
+    xor r9, r9                                  ; Specify file offset to begin mapping from
+    syscall                                     ; Call sys_mmap
+
+    mov BUFF_OFF, rax                           ; Save pointer to mapping
+
+    ; Close the file as its not needed anymore
+    mov rax, 0x3                                ; Specify sys_close
+    mov rdi, r12                                ; Pop FD into rdi
+    syscall                                     ; Call sys_close
+
+    mov r8, BUFF_OFF                           ; Save it to r12 instead
     xor BUFF_OFF, BUFF_OFF
-    xor CHAR_COUNT, CHAR_COUNT
-    xor BYTES_READ, BYTES_READ
-    xor BUFF_OUT_OFF, BUFF_OUT_OFF
-    ;
-
-    mov BYTES_READ, rax                         ; Save number of bytes read by sys_read
 
     cmp BYTES_READ, 0x10                        ; If less than 16 bytes read
     jb print_hex_tail                           ; Jump to tail process
@@ -173,7 +184,7 @@ read_file:
 print_hex:
     mov rcx, 0x10                               ; Use rcx as counter
 .loop:
-    movzx rax, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
+    movzx rax, BYTE [r8 + BUFF_OFF]                  ; Zero extend rax and copy current character into rax
     lea rsi, [hex_table + rax * 2]              ; Lookup its address in hex_table
 
     movzx rax, WORD [rsi]                       ; Zero extend rax and copy it into rax
@@ -200,7 +211,7 @@ print_padding:
 print_ascii:
     mov rcx, 0x10                               ; Use rcx as counter
 .loop:
-    movzx rax, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
+    movzx rax, BYTE [r8 + CHAR_COUNT]         ; Zero extend rax and copy current character into it
     lea rax, [ascii_table + rax]                ; Lookup address of current character in ascii_table
     mov al, [rax]                               ; Copy it into al
     mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
@@ -222,7 +233,10 @@ print_newline:
     sub BYTES_READ, 0x10                        ; Subtract 16 from number of bytes read
 
     test BYTES_READ, BYTES_READ                 ; Test if all bytes have been processed
-    jz flush_buff                               ; Print buff_out if they have been
+    jz flush_buff_exit                          ; Print buff_out if they have been
+
+    cmp BUFF_OUT_OFF, BUFF_OUT_LEN
+    jz flush_buff
 
     cmp BYTES_READ, 0x10                        ; Jump to tail process if less than 16
     jb print_hex_tail                           ; bytes left
@@ -231,10 +245,10 @@ print_newline:
 
 
 ; Close the file as good programmers should
-close_file:
-    mov rax, 0x3                                ; Specify sys_close
-    pop rdi                                     ; Pop FD into rdi
-    syscall                                     ; Call sys_close
+;close_file:
+;    mov rax, 0x3                                ; Specify sys_close
+;    pop rdi                                     ; Pop FD into rdi
+;    syscall                                     ; Call sys_close
 
 
 ; Exit gracefully
@@ -252,11 +266,24 @@ flush_buff:
     mov rdx, BUFF_OUT_OFF                       ; Specify number of bytes written to buff_out
     syscall                                     ; Call sys_write
 
-    jmp read_file                               ; Call sys_write
+    xor BUFF_OUT_OFF, BUFF_OUT_OFF
+
+    jmp print_hex                               ; Call sys_write
+
+
+; Print buff_out to STDOUT once its filled
+flush_buff_exit:
+    mov rax, 0x1                                ; Specify sys_write
+    mov rdi, 0x1                                ; Specify STDOUT
+    lea rsi, buff_out                           ; Load address of buff_out
+    mov rdx, BUFF_OUT_OFF                       ; Specify number of bytes written to buff_out
+    syscall                                     ; Call sys_write
+
+    jmp exit                                    ; Call sys_write
 
 
 print_hex_tail:
-    movzx rax, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
+    movzx rax, BYTE [r8 + BUFF_OFF]           ; Zero extend rax and copy current character into rax
     lea rsi, [hex_table + rax * 2]              ; Lookup its address in hex_table
 
     movzx rax, WORD [rsi]                       ; Copy it into rax
@@ -303,7 +330,7 @@ padding_loop_tail:
 
 ; Print characters
 print_ascii_tail:
-    movzx rax, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
+    movzx rax, BYTE [r8 + CHAR_COUNT]         ; Zero extend rax and copy current character into it
     lea rax, [ascii_table + rax]                ; Lookup address of current character in ascii_table
     mov al, [rax]                               ; Copy it into al
     mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
@@ -320,7 +347,7 @@ print_newline_tail:
     mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
-    jmp flush_buff                              ; Print buff_out
+    jmp flush_buff_exit                              ; Print buff_out
 
 
 ; If no file was specified, print an example of how the
