@@ -109,13 +109,11 @@ _start:
 ; Calculate length of the filename passed
 filename_len:
     mov rax, FILENAME_ADDR                      ; Move address of argv[1] into rax
-
-
 ; Length counting loop
-filename_len_loop:
+.loop:
     inc rdx                                     ; Keep count of arg length
     cmp BYTE [rax + rdx], 0x0                   ; Compare till null terminator
-    jne filename_len_loop                       ; is encountered
+    jne .loop                                   ; is encountered
 
 
 ; Print the filename to the screen
@@ -130,7 +128,7 @@ print_filename:
     ; Print a colon and newline after it
     mov rax, 0x1                                ; Specify sys_write
     mov rdi, 0x1                                ; Specify STDOUT
-    mov rsi, col_nl                             ; Specify address of ":\n"
+    lea rsi, col_nl                             ; Specify address of ":\n"
     mov rdx, 0x2                                ; Specify length of the string
     syscall                                     ; Call sys_write
 
@@ -139,7 +137,7 @@ print_filename:
 open_file:
     mov rax, 0x2                                ; Specify sys_open
     mov rdi, FILENAME_ADDR                      ; Specify address of the filename
-    mov rsi, 0x0                                ; Specify opening flags 0x0: Read Only
+    xor rsi, rsi                                ; Specify opening flags 0x0: Read Only
     syscall                                     ; Call sys_open
 
     push rax                                    ; Save the fd returned by sys_open
@@ -149,7 +147,7 @@ open_file:
 read_file:
     xor rax, rax                                ; Specify sys_read
     pop rdi                                     ; Pop FD from stack into rdi
-    mov rsi, buff                               ; Specify buffer address to read into
+    lea rsi, buff                               ; Specify buffer address to read into
     mov rdx, BUFF_LEN                           ; Specify length of the buffer
     syscall                                     ; Call sys_read
 
@@ -173,6 +171,8 @@ read_file:
 
 ; Print the raw bytes in the file as hex values
 print_hex:
+    mov rcx, 0x10
+.loop:
     movzx rax, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
     lea rsi, [hex_table + rax * 2]              ; Lookup its address in hex_table
 
@@ -180,26 +180,28 @@ print_hex:
     mov [buff_out + BUFF_OUT_OFF], ax           ; Write it to buff_out
     add BUFF_OUT_OFF, 0x2                       ; Move BUFF_OUT_OFF ahead by 2 bytes
 
-    inc BUFF_OFF                                ; Increment the character offset
-    inc CHAR_COUNT                              ; Increment character counter
-
-
-; Print characters if 16 hex values have been printed
-check_char_count:
-    cmp CHAR_COUNT, 0x10                        ; If 16 characters have been printed
-    je print_padding                            ; print padding
-
     mov rax, HEX_DELIM                          ; Move a ' ' into rax
     mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
-    jmp print_hex                               ; Jump back to print_hex
+    inc BUFF_OFF                                ; Increment the character offset
+    dec rcx
+    jnz .loop
+
+
+; Print padding
+print_padding:
+    movzx rsi, DWORD [space]                    ; Zero extend rsi and move '    ' into rsi
+    mov [buff_out + BUFF_OUT_OFF], esi          ; Write it to buff_out
+    add BUFF_OUT_OFF, 0x3                       ; Move BUFF_OUT_OFF by 4 bytes
 
 
 ; Print characters
 print_ascii:
-    cmp CHAR_COUNT, BUFF_OFF                    ; If 16 character have been printed
-    je print_newline                            ; print a newline
+    mov rcx, 0x10
+.loop:
+;    cmp CHAR_COUNT, BUFF_OFF                    ; If 16 character have been printed
+;    je print_newline                            ; print a newline
 
     movzx rax, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
     lea rax, [ascii_table + rax]                ; Lookup address of current character in ascii_table
@@ -208,8 +210,8 @@ print_ascii:
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     inc CHAR_COUNT                              ; Point to next character
-
-    jmp print_ascii                             ; Jump back to process more characters
+    dec rcx
+    jnz .loop                                   ; Jump back to process more characters
 
 
 ; Print a newline after characters have been printed
@@ -228,21 +230,8 @@ print_newline:
     cmp BYTES_READ, 0x10                        ; Jump to tail process if less than 16
     jb print_hex_tail                           ; bytes left
 
-    xor CHAR_COUNT, CHAR_COUNT                  ; Reset CHAR_COUNT
 
     jmp print_hex                               ; Jump back to printing hex characters
-
-
-; Prints padding and sets up char count so it can be used as the buff offset
-print_padding:
-    sub CHAR_COUNT, BUFF_OFF                    ; Subtract buff offset from char count
-    neg CHAR_COUNT                              ; Negate the result so char count can be used as the offset
-
-    movzx rsi, DWORD [space]                    ; Zero extend rsi and move '    ' into rsi
-    mov [buff_out + BUFF_OUT_OFF], esi          ; Write it to buff_out
-    add BUFF_OUT_OFF, 0x4                       ; Move BUFF_OUT_OFF by 4 bytes
-
-    jmp print_ascii                             ; Jump back to print_ascii
 
 
 ; Close the file as good programmers should
@@ -255,7 +244,7 @@ close_file:
 ; Exit gracefully
 exit:
     mov rax, 0x3c                               ; Specify sys_exit
-    mov rdi, 0x0                                ; Specify return value
+    xor rdi, rdi                                ; Specify return value
     syscall                                     ; Call sys_exit
 
 
@@ -263,7 +252,7 @@ exit:
 flush_buff:
     mov rax, 0x1                                ; Specify sys_write
     mov rdi, 0x1                                ; Specify STDOUT
-    mov rsi, buff_out                           ; Load address of buff_out
+    lea rsi, buff_out                           ; Load address of buff_out
     mov rdx, BUFF_OUT_OFF                       ; Specify number of bytes written to buff_out
     syscall                                     ; Call sys_write
 
@@ -343,7 +332,7 @@ print_newline_tail:
 err_exit:
     mov rax, 0x1                                ; Specify sys_write
     mov rdi, 0x2                                ; Specify STDERR
-    mov rsi, err_msg                            ; Error msg
+    lea rsi, err_msg                            ; Error msg
     mov rdx, err_msg_len                        ; Error msg len
     syscall                                     ; Call sys_write
 
