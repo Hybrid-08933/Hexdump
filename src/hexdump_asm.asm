@@ -162,6 +162,7 @@ map_file:
     mov rsi, BYTES_READ                         ; Specify file size
     mov rdx, 0x1                                ; Specify mapping protection
     mov r10, 0x2                                ; Specify mapping flags, 0x2: Private mapping
+    or r10, 0x8000                              ; Prepopulate
     mov r8, r12                                 ; Specify file fd
     xor r9, r9                                  ; Specify file offset to begin mapping from
     syscall                                     ; Call sys_mmap
