@@ -14,4 +14,4 @@ $(BUILD_DIR)/hexdump_asm.o: $(SRCS_DIR)/hexdump_asm.asm | $(BUILD_DIR)
 	nasm -f elf64 -g -o $@ $<
 
 $(BUILD_DIR):
-	mkdir $(BUILD_DIR)
+	mkdir $@
