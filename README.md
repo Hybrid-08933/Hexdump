@@ -44,4 +44,4 @@ perf stat -r 5 ./build/hexdump test512.bin > /dev/null
 
            0.53438 +- 0.00176 seconds time elapsed  ( +-  0.33% )
 ```
-The mmap version is much more consistent but uses as much memory as the size of the file.
+The mmap version is much more consistent.
