@@ -2,90 +2,46 @@
 
 ## Overview
 
-This project is a **low-level hexdump utility written in x86_64 assembly for Linux**. The primary goal of this project was to learn **assembly programming, Linux syscalls, and low-level file I/O**, rather than to replicate all features of standard hexdump tools.
+Experimental version which uses mmap to memory map the entire file into memory instead of using a buffer to hold the file. There are no limits on how big the file can be which is less than ideal i suppose but why would anyone hexdump a file gigabytes in size.
 
-The utility reads files in fixed-size chunks and displays their contents in **hexadecimal and ASCII columns**, including the filename.
-
----
-
-## Features
-
-* Written in **x86_64 assembly** using **NASM** and linked with **GNU Linker**
-* Uses **Linux syscalls** (`sys_open`, `sys_read`, `sys_write`, `sys_exit`) for file operations
-* Reads files in **64-Kilobyte chunks** for efficient processing
-* Prints **hexadecimal bytes and printable ASCII characters side by side**, including the filename
-* Exits cleanly at **EOF**
-* Handles **basic error checking** for missing filename input
-* Built with **Make** for easy assembly and linking
-
----
-
-## Sample Output
+## Performance difference
+Heres perf stat for the buffered version on a 512mb file with cold cache
 ```
-sample.txt:
-48  65  6C  6C  6F  2C  20  57  6F  72  6C  64  21  0A  3C  20    Hello, World!.< 
-3E  20  21  20  5F  20  2D  20  2B  20  40  20  23  20  24  20    > ! _ - + @ # $ 
-25  0A  5E  20  26  20  2A  20  28  20  29  20  5B  20  5D  20    %.^ & * ( ) [ ] 
-7B  20  7D  20  5C  0A  7C  20  27  20  22  20  3A  20  3B  20    { } \.| ' " : ; 
-2C  20  2E  20  2F  20  3F  20  60  0A                            , . / ? `.
+perf stat -r 5 ./build/hexdump test512.bin > /dev/null
+
+ Performance counter stats for './build/hexdump test512.bin' (5 runs):
+
+            536.93 msec task-clock:u                     #    0.999 CPUs utilized               ( +-  2.46% )
+                 0      context-switches:u               #    0.000 /sec                      
+                 0      cpu-migrations:u                 #    0.000 /sec                      
+                69      page-faults:u                    #  128.509 /sec                      
+    10,670,458,289      instructions:u                   #    4.84  insn per cycle            
+                                                  #    0.00  stalled cycles per insn     ( +-  0.00% )
+     2,204,977,177      cycles:u                         #    4.107 GHz                         ( +-  0.17% )
+         2,932,130      stalled-cycles-frontend:u        #    0.13% frontend cycles idle        ( +- 25.02% )
+     1,174,431,108      branches:u                       #    2.187 G/sec                       ( +-  0.00% )
+            28,096      branch-misses:u                  #    0.00% of all branches             ( +-  6.92% )
+
+            0.5375 +- 0.0133 seconds time elapsed  ( +-  2.47% )
 ```
 
----
-
-## How It Works (High-Level)
-
-* The program runs by:
-
-  1. Accepting a **filename** as a command-line argument
-  2. Opening the file with **sys_open**
-  3. Reading the file in **64-Kilobyte chunks** using **sys_read**
-  4. Printing the **hex bytes and ASCII characters side by side** with **sys_write**
-  5. Repeating until EOF, then closing the file and exiting with **sys_exit**
-
-* If no filename is provided, the program prints an error message and exits gracefully.
-* Focuses on **low-level memory access and syscall usage**, rather than full error handling or extra features.
-
----
-
-## Compilation & Execution
-
-```bash
-make
-./build/hexdump file
+Heres perf stat for the mmap version
 ```
+perf stat -r 5 ./build/hexdump test512.bin > /dev/null
 
----
+ Performance counter stats for './build/hexdump test512.bin' (5 runs):
 
-## Known Limitations
+            532.28 msec task-clock:u                     #    0.996 CPUs utilized               ( +-  0.29% )
+                 0      context-switches:u               #    0.000 /sec                      
+                 0      cpu-migrations:u                 #    0.000 /sec                      
+                68      page-faults:u                    #  127.752 /sec                      
+    10,737,451,679      instructions:u                   #    4.63  insn per cycle            
+                                                  #    0.00  stalled cycles per insn     ( +-  0.00% )
+     2,319,353,802      cycles:u                         #    4.357 GHz                         ( +-  0.32% )
+         4,463,355      stalled-cycles-frontend:u        #    0.19% frontend cycles idle        ( +- 19.85% )
+     1,207,960,169      branches:u                       #    2.269 G/sec                       ( +-  0.00% )
+            20,478      branch-misses:u                  #    0.00% of all branches             ( +-  6.68% )
 
-* Only handles missing filename errors; other file I/O errors are not handled
-* Output does not include offset column like standard hexdump tools
-* Focused on learning assembly and syscalls, not production-ready features
-
----
-
-## Learning Objectives & Takeaways
-
-Through this project, I learned:
-
-* Basics of x86_64 assembly programming
-* Using Linux syscalls for file operations
-* Handling buffers and memory access at a low level
-* Formatting output in hexadecimal and ASCII
-* Managing builds using NASM, GNU Linker, and Make
-
----
-
-## Future Improvements
-
-* Add a offset column
-* ~~Use buffered output~~ Done
-* ~~Use a translation table instead of bit-shifting to convert binary to hex~~ Done
-* Handle potential syscall errors
-* Use SIMD instructions to parallize processing (advanced)
-
----
-
-## Disclaimer
-
-This project was created **for learning purposes** by a student new to assembly programming. The emphasis was on understanding concepts rather than producing a feature-complete utility program.
+           0.53438 +- 0.00176 seconds time elapsed  ( +-  0.33% )
+```
+The mmap version is much more consistent but uses as much memory as the size of the file.
