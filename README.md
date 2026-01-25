@@ -2,7 +2,7 @@
 
 ## Overview
 
-Experimental version which uses mmap to memory map the entire file into memory instead of using a buffer to hold the file. There are no limits on how big the file can be which is less than ideal i suppose but why would anyone hexdump a file gigabytes in size.
+Experimental version which uses mmap to memory map the entire file into memory instead of using a buffer to hold the file. There are no limits on how big the file can be which is less than ideal.
 
 ## Performance difference
 Heres perf stat for the buffered version on a 512mb file with cold cache
