@@ -2,25 +2,25 @@
 
 ## Overview
 
-This project is a **low-level hexdump utility written in x86_64 assembly for Linux**. The primary goal of this project was to learn **assembly programming, Linux syscalls, and low-level file I/O**, rather than to replicate all features of standard hexdump tools.
+This repository contains a **minimal hexdump utility written in x86_64 assembly for Linux.**
+The project focuses on **direct interaction with Linux system calls**, explicit buffer management, and low-level output formatting.
 
-The utility reads files in fixed-size chunks and displays their contents in **hexadecimal and ASCII columns**, including the filename.
-
----
-
-## Features
-
-* Written in **x86_64 assembly** using **NASM** and linked with **GNU Linker**
-* Uses **Linux syscalls** (`sys_open`, `sys_read`, `sys_write`, `sys_exit`) for file operations
-* Reads files in **64-Kilobyte chunks** for efficient processing
-* Prints **hexadecimal bytes and printable ASCII characters side by side**, including the filename
-* Exits cleanly at **EOF**
-* Handles **basic error checking** for missing filename input
-* Built with **Make** for easy assembly and linking
+The utility reads a file in fixed-size chunks and prints its contents as **hexadecimal bytes alongside their ASCII representation.** The implementation prioritizes clarity of low-level control flow and syscall usage over feature completeness.
 
 ---
 
-## Sample Output
+## Key Characteristics
+
+* Implemented entirely in **x86_64 assembly** (NASM)
+* Uses **direct Linux syscalls (`open`, `read`, `write`, `exit`)**
+* Processes input in **64 KB chunks** to reduce syscall overhead
+* Formats output into fixed-width hexadecimal and ASCII columns
+* Minimal runtime dependencies
+* Built using **Make** and linked with **GNU ld**
+
+---
+
+## Example Output
 ```
 sample.txt:
 48  65  6C  6C  6F  2C  20  57  6F  72  6C  64  21  0A  3C  20    Hello, World!.< 
@@ -32,60 +32,52 @@ sample.txt:
 
 ---
 
-## How It Works (High-Level)
+## High-Level Design
 
-* The program runs by:
+* At a a high level, the program:
 
-  1. Accepting a **filename** as a command-line argument
-  2. Opening the file with **sys_open**
-  3. Reading the file in **64-Kilobyte chunks** using **sys_read**
-  4. Printing the **hex bytes and ASCII characters side by side** with **sys_write**
-  5. Repeating until EOF, then closing the file and exiting with **sys_exit**
+  1. Accepts a filename as a command-line argument
+  2. Opens the file using a Linux syscall
+  3. Reads data into a fixed-size buffer
+  4. Converts each byte into hexadecimal and printable ASCII
+  5. Writes formatted output using buffered `write` syscalls
+  6. Repeats until EOF, then exits cleanly
 
-* If no filename is provided, the program prints an error message and exits gracefully.
-* Focuses on **low-level memory access and syscall usage**, rather than full error handling or extra features.
-
+* The implementation deliberately avoids libc abstractions to keep control over register usage, memory layout, and syscall boundaries.
 ---
 
-## Compilation & Execution
+## Build & Run
 
 ```bash
 make
-./build/hexdump file
+./build/hexdump <file>
 ```
 
 ---
 
-## Known Limitations
+## Limitations
 
-* Only handles missing filename errors; other file I/O errors are not handled
-* Output does not include offset column like standard hexdump tools
-* Focused on learning assembly and syscalls, not production-ready features
+* Only basic argument validation is performed
+* No offset column is included
+* Full error reporting for I/O failures is not implemented
+* Not intended as a drop-in replacement for `hexdump` or `xxd`
 
 ---
 
-## Learning Objectives & Takeaways
+## Notes on Implementation
 
-Through this project, I learned:
-
-* Basics of x86_64 assembly programming
-* Using Linux syscalls for file operations
-* Handling buffers and memory access at a low level
-* Formatting output in hexadecimal and ASCII
-* Managing builds using NASM, GNU Linker, and Make
+* Output is buffered to reduce syscall frequency on large inputs
+* Hexadecimal and ASCII conversion use a lookup table rather than bit manipulation
+* The formatting loop is structured to keep control flow predictable
+* Debugging and validation were performed using `gdb` and `perf`
 
 ---
 
 ## Future Improvements
 
 * Add a offset column
-* ~~Use buffered output~~ Done
-* ~~Use a translation table instead of bit-shifting to convert binary to hex~~ Done
-* Handle potential syscall errors
-* Use SIMD instructions to parallize processing (advanced)
+* Improve syscall error handling
+* Support configurable output width
+* Experiment with SIMD-based formatting for larger throughput
 
 ---
-
-## Disclaimer
-
-This project was created **for learning purposes** by a student new to assembly programming. The emphasis was on understanding concepts rather than producing a feature-complete utility program.
