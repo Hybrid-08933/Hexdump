@@ -20,7 +20,7 @@ default rel
 ;
 
 SECTION .data
-    err_msg: db "Usage: hexdump_asm file",0xA   ; Error msg for incorrect usage of program
+    err_msg: db "Usage: hexdump_asm <file>",0xA   ; Error msg for incorrect usage of program
     err_msg_len: equ $-err_msg                  ; Error msg length
     col_nl: db ":",0xA                          ; A colon and new line
     space: db "    "                            ; 4 spaces
