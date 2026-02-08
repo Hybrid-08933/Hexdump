@@ -34,7 +34,7 @@ sample.txt:
 
 ## High-Level Design
 
-* At a a high level, the program:
+* At a high level, the program:
 
   1. Accepts a filename as a command-line argument
   2. Opens the file using a Linux syscall
