@@ -1,11 +1,21 @@
-# Hexdump Utility
+# Hexdump Utility (mmap version)
 
 ## Overview
 
-Experimental version which uses mmap to memory map the entire file into memory instead of using a buffer to hold the file. There are no limits on how big the file can be which is less than ideal.
+This branch implements an experimental version of the hexdump utility using `mmap()` to map the entire file into memory instead of reading it into a fixed-size buffer.  
 
-## Performance difference
-Heres perf stat for the buffered version on a 512mb file with cold cache
+- Memory mapping uses the `MAP_POPULATE` flag to pre-fault pages into RAM, reducing page faults during iteration.
+- Output is still written using a **buffered write** mechanism, so the core formatting and output hot loop remain unchanged.
+- This approach allows the program to handle files larger than a fixed buffer size and slightly improves execution consistency.
+
+---
+
+## Performance Comparison
+
+Performance was measured on a 512 MB test file with stdout redirected to `/dev/null` to focus on CPU-bound formatting work.
+
+### Buffered (`read`-based) version
+
 ```
 perf stat -r 5 ./build/hexdump test512.bin > /dev/null
 
@@ -24,6 +34,8 @@ perf stat -r 5 ./build/hexdump test512.bin > /dev/null
 
             0.5375 +- 0.0133 seconds time elapsed  ( +-  2.47% )
 ```
+
+### `mmap` version (input memory-mapped, output still buffered)
 
 Heres perf stat for the mmap version
 ```
@@ -44,4 +56,16 @@ perf stat -r 5 ./build/hexdump test512.bin > /dev/null
 
            0.53438 +- 0.00176 seconds time elapsed  ( +-  0.33% )
 ```
-The mmap version is much more consistent.
+
+---
+
+**Key Observations:**
+- Mean runtime is essentially the same, confirming the workload is **compute-bound** rather than I/O-bound.
+- Using `MAP_POPULATE` reduces run-to-run variance and page faults, resulting in more consistent execution.
+- Buffered output keeps the CPU busy in the same hot loop, so IPC and branch behavior remain near the architectural peak.
+
+---
+
+## Conclusion
+
+The mmap + MAP_POPULATE approach **does not significantly improve throughput**, but it provides **more consistent performance** by preloading file pages into memory. This branch serves as an experiment in memory-mapped input while keeping the core formatting pipeline and buffered output unchanged.
