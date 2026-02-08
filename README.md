@@ -22,7 +22,7 @@ The utility reads a file in fixed-size chunks and prints its contents as **hexad
 
 ## Performance Characteristics
 
-This implementation is designed to explore the upper bound of scalar performance for a real I/O-driven formatting workload.
+This implementation is designed to explore the upper bound of scalar performance for a real I/O-driven formatting workload. All performance measurements were taken with stdout redirected to /dev/null to eliminate terminal I/O effects and focus on formatting and syscall overhead.
 
 Measured on a modern x86_64 Linux system using `perf stat`:
 
