@@ -10,11 +10,23 @@ This branch implements an experimental version of the hexdump utility using `mma
 
 ---
 
+## Reproducing results
+
+```bash
+git checkout main
+make benchmark
+
+git checkout mmap
+make benchmark
+```
+
+---
+
 ## Performance Comparison
 
 Performance was measured on a 512 MB test file with stdout redirected to `/dev/null` to focus on CPU-bound formatting work.
 
-### Buffered (`read`-based) version
+### perf stat output (both reads and writes buffered)
 
 ```
 perf stat -r 5 ./build/hexdump test512.bin > /dev/null
@@ -35,9 +47,8 @@ perf stat -r 5 ./build/hexdump test512.bin > /dev/null
             0.5375 +- 0.0133 seconds time elapsed  ( +-  2.47% )
 ```
 
-### `mmap` version (input memory-mapped, output still buffered)
+### perf stat output (file mmaped, writes buffered)
 
-Heres perf stat for the mmap version
 ```
 perf stat -r 5 ./build/hexdump test512.bin > /dev/null
 
@@ -62,7 +73,7 @@ perf stat -r 5 ./build/hexdump test512.bin > /dev/null
 **Key Observations:**
 - Mean runtime is essentially the same, confirming the workload is **compute-bound** rather than I/O-bound.
 - Using `MAP_POPULATE` reduces run-to-run variance and page faults, resulting in more consistent execution.
-- Buffered output keeps the CPU busy in the same hot loop, so IPC and branch behavior remain near the architectural peak.
+- Buffered output keeps the CPU busy in the same hot loop, so IPC and branch behavior remain remain close to scalar execution limits
 
 ---
 
