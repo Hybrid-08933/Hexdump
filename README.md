@@ -2,10 +2,7 @@
 
 ## Overview
 
-This repository contains a **minimal hexdump utility written in x86_64 assembly for Linux.**
-The project focuses on **direct interaction with Linux system calls**, explicit buffer management, and low-level output formatting.
-
-The utility reads a file in fixed-size chunks and prints its contents as **hexadecimal bytes alongside their ASCII representation.** The implementation prioritizes hot-path performance, predictable control flow, and minimal syscall overhead, deliberately trading feature completeness for microarchitectural efficiency.
+Minimal hexdump utility in x86_64 assembly for Linux using direct syscalls. Formats file contents into hex + ASCII columns with buffered output and no libc dependencies. Designed to explore hot-loop performance and syscall overhead.
 
 ---
 
