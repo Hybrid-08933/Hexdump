@@ -9,6 +9,24 @@ The utility reads a file in fixed-size chunks and prints its contents as **hexad
 
 ---
 
+## Build, Run, & Benchmark
+
+Run:
+```bash
+make
+./build/hexdump <file>
+```
+
+Benchmark:
+```bash
+make benchmark SIZE=512 ITER=5
+```
+Parameters (optional):
+- SIZE - test file size in MB (default: 512)
+- ITER - number of benchmark iterations (default: 5)
+
+---
+
 ## Key Characteristics
 
 * Implemented entirely in **x86_64 assembly** (NASM)
@@ -22,18 +40,15 @@ The utility reads a file in fixed-size chunks and prints its contents as **hexad
 
 ## Performance Characteristics
 
-This implementation is designed to explore the upper bound of scalar performance for a real I/O-driven formatting workload. All performance measurements were taken with stdout redirected to /dev/null to eliminate terminal I/O effects and focus on formatting and syscall overhead.
+Benchmarked with `perf stat -r 5` on a 512MB file with stdout redirected to /dev/null.
 
-Measured on a modern x86_64 Linux system using `perf stat`:
+Observed:
+- ~4.7 IPC (cache-warm)
+- near-zero branch mispredicts
+- negligible frontend stalls
+- compute-bound when input is page-cached
 
-* Sustains 4.6–4.8 IPC depending on cache warmth, indicating operation near the architectural limits of scalar execution.
-* Near-zero branch misprediction rate
-* Negligible frontend stalls
-* No context switches or CPU migrations during steady-state execution
-
-The program is compute-bound once input data is resident in the page cache. Performance is dominated by formatting and output generation rather than I/O latency.
-
-These results indicate that the hot loop operates close to the architectural limits of scalar execution.
+Hot loop designed for predictable control flow and minimal syscall overhead.
 
 ---
 
@@ -61,15 +76,6 @@ sample.txt:
   6. Repeats until EOF, then exits cleanly
 
 * The implementation deliberately avoids libc abstractions to keep control over register usage, memory layout, and syscall boundaries.
----
-
-## Build & Run
-
-```bash
-make
-./build/hexdump <file>
-```
-
 ---
 
 ## Limitations
