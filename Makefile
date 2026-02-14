@@ -17,11 +17,11 @@ FILE := test$(SIZE)M.bin
 ITER ?= 5
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(BUILD_DIR)/hexdump_asm.o
-	@echo "[LD]	$<"
+	@echo "[LD]	$@"
 	@ld -o $@ $<
 
 $(BUILD_DIR)/hexdump_asm.o: $(SRCS_DIR)/hexdump_asm.asm | $(BUILD_DIR)
-	@echo "[NASM]	$<"
+	@echo "[NASM]	$@"
 	@nasm -f elf64 -g -o $@ $<
 
 benchmark: $(BUILD_DIR)/$(TARGET_EXEC) | $(FILE)
@@ -31,10 +31,7 @@ benchmark: $(BUILD_DIR)/$(TARGET_EXEC) | $(FILE)
 $(BUILD_DIR):
 	@echo "Making build directory..."
 	@mkdir $@
-	@echo
 
 $(FILE):
 	@echo "Creating $(SIZE)M file from /dev/urandom..."
 	@dd if=/dev/urandom of=$(FILE) bs=1M count=16 status=none
-	@echo
-
