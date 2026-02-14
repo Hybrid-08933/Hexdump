@@ -18,13 +18,9 @@ ITER ?= 5
 
 # Check if these commands exist in $PATH
 NASM := $(shell command -v nasm)
-LD	 := $(shell command -v ld)
 PERF := $(shell command -v perf)
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(BUILD_DIR)/hexdump_asm.o
-ifeq ($(LD),)
-	$(error "ld not found, please make sure your $PATH is set correctly.")
-endif
 	@echo "[LD]	$@"
 	@ld -o $@ $<
 
