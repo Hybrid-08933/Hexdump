@@ -44,4 +44,4 @@ $(BUILD_DIR):
 
 $(FILE):
 	@echo "Creating $(SIZE)M file from /dev/urandom..."
-	@dd if=/dev/urandom of=$(FILE) bs=1M count=16 status=none
+	@dd if=/dev/urandom of=$(FILE) bs=$(SIZE)M count=1 status=none
