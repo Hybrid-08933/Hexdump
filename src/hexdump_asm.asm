@@ -2,7 +2,7 @@ default rel
 
 ; Define some macros
 %define FILENAME_ADDR       [rsp + 0x10]        ; Address of argv[1]
-%define BUFF_LEN            0x200000             ; Length of file buffer
+%define BUFF_LEN            0x110000             ; Length of file buffer
 %define HEX_PER_LINE        0x10                ; Number of hex chars per line
 %define HEX_DELIM           0x20                ; Delimiter between hex chars
 %define HEX_DELIM_NUM       0x1                 ; Number of delims between chars
