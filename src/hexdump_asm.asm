@@ -172,46 +172,22 @@ read_file:
 ; Print the raw bytes in the file as hex values
 print_hex:
     mov rcx, 0x10                               ; Use rcx as counter
-    ; Maybe not efficient
-    ;mov rdx, 0x20202020
-    ;mov rsi, 0xA
-    ;mov rdx, ' '
-    ;shl rdx, 16
 .loop:
     movzx rdx, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
-    ; Redundant
-    ;lea rsi, [hex_table + rax * 2]              ; Lookup its address in hex_table
-    ;movzx rax, WORD [rsi]                       ; Zero extend rax and copy it into rax
-    ;movzx rax, WORD [hex_table + rax * 2]
-    movzx rax, DWORD [hex_table + rdx * 4]
-    ;or rax, rdx
-    ;mov WORD [buff_out + BUFF_OUT_OFF], ax      ; Write it to buff_out
-    ;add BUFF_OUT_OFF, 0x2                       ; Move BUFF_OUT_OFF ahead by 2 bytes
 
-    ;mov rax, HEX_DELIM                          ; Move a ' ' into rax
-    ;mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
-    mov DWORD [buff_out + BUFF_OUT_OFF], eax
-    add BUFF_OUT_OFF, 0x3
+    movzx rax, DWORD [hex_table + rdx * 4]      ; Lookup value in hex_table
 
-    ; Seems like using a register to hold trivial values like this one
-    ; causes higher stalled frontend cycles, using immediate values
-    ; might be better
-    ;mov BYTE [buff_out + BUFF_OUT_OFF], HEX_DELIM
-    ;mov BYTE [buff_out + BUFF_OUT_OFF], dl
-    ;inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
+    mov DWORD [buff_out + BUFF_OUT_OFF], eax    ; Write it to buff_out
+    add BUFF_OUT_OFF, 0x3                       ; Move BUFF_OUT_OFF by 3
 
     inc BUFF_OFF                                ; Increment the character offset
-    ;dec rcx                                     ; Decrement counter
-    sub rcx, 0x1
 
+    sub rcx, 0x1
     jnz .loop                                   ; Keep looping till its zero
 
 
 ; Print padding
 print_padding:
-    ;mov esi, DWORD [space]                    ; Zero extend rsi and move '    ' into rsi
-    ;mov [buff_out + BUFF_OUT_OFF], esi          ; Write it to buff_out
-    ;mov DWORD [buff_out + BUFF_OUT_OFF], edx
     mov DWORD [buff_out + BUFF_OUT_OFF], 0x20202020
     add BUFF_OUT_OFF, 0x3                       ; Move BUFF_OUT_OFF by 3 bytes
 
@@ -221,15 +197,14 @@ print_ascii:
     mov rcx, 0x10                               ; Use rcx as counter
 .loop:
     movzx rdx, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
-    ; Redundant
-    ;lea rax, [ascii_table + rax]                ; Lookup address of current character in ascii_table
-    ;mov al, [rax]                               ; Copy it into al
+
     movzx rax, BYTE [ascii_table + rdx]
+
     mov BYTE [buff_out + BUFF_OUT_OFF], al      ; Write it to buff_out
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     inc CHAR_COUNT                              ; Point to next character
-    ;dec rcx                                     ; Decrement counter
+
     sub rcx, 0x1
     jnz .loop                                   ; Keep looping till its zero
 
@@ -238,15 +213,11 @@ print_ascii:
 ; and jump to read_file if all bytes have been printed
 ; otherwise jump back to print_hex
 print_newline:
-    ;movzx rax, BYTE [col_nl+0x1]                ; Zero extend rax and move '\n' into rax
-    ;mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
-    ;mov BYTE [buff_out + BUFF_OUT_OFF], sil
     mov BYTE [buff_out + BUFF_OUT_OFF], 0xA
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     sub BYTES_READ, 0x10                        ; Subtract 16 from number of bytes read
 
-    ;test BYTES_READ, BYTES_READ                 ; Test if all bytes have been processed
     jz flush_buff                               ; Print buff_out if they have been
 
     cmp BYTES_READ, 0x10                        ; Jump to tail process if less than 16
@@ -285,28 +256,19 @@ print_hex_tail:
     ;mov rdx, 0xA
 .loop:
     movzx rdx, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
-    ; Redundant
-    ;lea rsi, [hex_table + rax * 2]              ; Lookup its address in hex_table
-    ;movzx rax, WORD [rsi]                       ; Copy it into rax
-    movzx rax, DWORD [hex_table + rdx * 4]
+
+    movzx rax, DWORD [hex_table + rdx * 4]      ; Lookup value in hex_table
+
     mov DWORD [buff_out + BUFF_OUT_OFF], eax    ; Write it to buff_out
     add BUFF_OUT_OFF, 0x2                       ; Move BUFF_OUT_OFF ahead by 2 bytes
 
     inc BUFF_OFF                                ; Increment BUFF_OFF
-    ;dec BYTES_READ                              ; Decrement BYTES_READ
+
     sub BYTES_READ, 0x1
-
-
-; Print characters if 16 hex values have been printed
-;check_char_count_tail:
     je print_padding_tail                       ; If BYTES_READ is 0 print padding
 
-    ;mov rax, HEX_DELIM                          ; Move ' ' into rax
-    ;mov BYTE [buff_out + BUFF_OUT_OFF], cl           ; Write it to buff_out
-    ;mov BYTE [buff_out + BUFF_OUT_OFF], HEX_DELIM
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
-    ;jmp print_hex_tail                          ; Jump back to print_hex
     jmp .loop
 
 
@@ -317,34 +279,25 @@ print_padding_tail:
     sub rax, 0x10                               ; Subtract 16 from it
     neg rax                                     ; Negate it
 
-    ;movzx rsi, DWORD [space]                    ; Zero extend rsi and move '    ' into rsi
-
-    ;mov [buff_out + BUFF_OUT_OFF], esi          ; Write it to buff_out
-    ;mov DWORD [buff_out + BUFF_OUT_OFF], ecx
     mov DWORD [buff_out + BUFF_OUT_OFF], 0x20202020
     add BUFF_OUT_OFF, 0x4                       ; Move BUFF_OUT_OFF ahead by 4 bytes
 
 
 ; The loop to print spaces
 padding_loop_tail:
-    ;mov [buff_out + BUFF_OUT_OFF], esi          ; Write it to buff_out
-    ;mov DWORD [buff_out + BUFF_OUT_OFF], ecx
     mov DWORD [buff_out + BUFF_OUT_OFF], 0x20202020
     add BUFF_OUT_OFF, 0x3                       ; Move BUFF_OUT_OFF ahead by 3 bytes
 
-    ;dec rax                                     ; Decrement rax
     sub rax, 0x1
-
     jnz padding_loop_tail                       ; Loop till enough padding has been written
 
 
 ; Print characters
 print_ascii_tail:
     movzx rdx, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
-    ; Redundant
-    ;lea rax, [ascii_table + rax]                ; Lookup address of current character in ascii_table
-    ;mov al, [rax]                               ; Copy it into al
-    movzx rax, BYTE [ascii_table + rdx]
+
+    movzx rax, BYTE [ascii_table + rdx]         ; Lookup value in ascii_table
+
     mov BYTE [buff_out + BUFF_OUT_OFF], al      ; Write it to buff_out
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
@@ -355,10 +308,7 @@ print_ascii_tail:
 
 
 print_newline_tail:
-    ;movzx rax, BYTE [col_nl+0x1]                ; Move '\n' into al
-    ;mov [buff_out + BUFF_OUT_OFF], al           ; Write it to buff_out
     mov [buff_out + BUFF_OUT_OFF], 0xA
-    ;mov BYTE [buff_out + BUFF_OUT_OFF], dl
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
 
     jmp flush_buff                              ; Print buff_out
