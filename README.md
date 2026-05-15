@@ -28,7 +28,7 @@ Parameters (optional):
 
 * Implemented entirely in **x86_64 assembly** (NASM)
 * Uses **direct Linux syscalls (`open`, `read`, `write`, `exit`)**
-* Processes input in **64 KB chunks** to reduce syscall overhead
+* Processes input in **~1 MiB chunks** to reduce syscall overhead
 * Formats output into fixed-width hexadecimal and ASCII columns
 * Minimal runtime dependencies
 * Built using **Make** and linked with **GNU ld**
