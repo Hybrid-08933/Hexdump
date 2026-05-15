@@ -37,10 +37,10 @@ Parameters (optional):
 
 ## Performance Characteristics
 
-Benchmarked with `perf stat -r 5` on a 512MB file with stdout redirected to /dev/null.
+Benchmarked on an amd ryzen 5 7535U with `perf stat -r 5` on a 512MB file with stdout redirected to /dev/null.
 
 Observed:
-- ~5.2 IPC (sustained across runs)
+- ~5.5 IPC (this does depend on boosting behaviour)
 - near-zero branch mispredicts
 - negligible frontend stalls
 - ~0.5% timing variance across runs
