@@ -89,6 +89,32 @@ SECTION .data
         db 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
         db 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
         db 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E
+    ascii_table_v2:
+%assign high 0x0
+%rep 256
+
+    %assign low 0x0
+
+    %if high <= 31 || high >= 127
+        %assign c1 0x2E
+    %else
+        %assign c1 high
+    %endif
+
+    %rep 256
+        %if low <= 31 || low >= 127
+            %assign c0 0x2E
+        %else
+            %assign c0 low
+        %endif
+
+        dw (c1 << 8) | c0
+
+        %assign low low + 1
+    %endrep
+
+    %assign high high + 1
+%endrep
 
 SECTION .bss
     buff: resb BUFF_LEN                         ; A buffer to hold files
@@ -173,9 +199,9 @@ read_file:
 print_hex:
     mov rcx, 0x10                               ; Use rcx as counter
 .loop:
-    movzx rdx, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
+    movzx rax, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
 
-    movzx rax, DWORD [hex_table + rdx * 4]      ; Lookup value in hex_table
+    movzx rax, DWORD [hex_table + rax * 4]      ; Lookup value in hex_table
 
     mov DWORD [buff_out + BUFF_OUT_OFF], eax    ; Write it to buff_out
     add BUFF_OUT_OFF, 0x3                       ; Move BUFF_OUT_OFF by 3
@@ -196,16 +222,21 @@ print_padding:
 print_ascii:
     mov rcx, 0x10                               ; Use rcx as counter
 .loop:
-    movzx rdx, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
+    ;movzx rax, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
+    movzx rax, WORD [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
 
-    movzx rax, BYTE [ascii_table + rdx]
+    ;movzx rax, BYTE [ascii_table + rax]
+    movzx rax, WORD [ascii_table_v2 + rax * 2]
 
-    mov BYTE [buff_out + BUFF_OUT_OFF], al      ; Write it to buff_out
-    inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
+    ;mov BYTE [buff_out + BUFF_OUT_OFF], al      ; Write it to buff_out
+    mov WORD [buff_out + BUFF_OUT_OFF], ax      ; Write it to buff_out
+    ;inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
+    add BUFF_OUT_OFF, 0x2
 
-    inc CHAR_COUNT                              ; Point to next character
+    ;inc CHAR_COUNT                              ; Point to next character
+    add CHAR_COUNT, 0x2
 
-    sub rcx, 0x1
+    sub rcx, 0x2
     jnz .loop                                   ; Keep looping till its zero
 
 
@@ -252,12 +283,10 @@ flush_buff:
 
 
 print_hex_tail:
-    ;mov ecx, 0x20202020
-    ;mov rdx, 0xA
 .loop:
-    movzx rdx, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
+    movzx rax, BYTE [buff + BUFF_OFF]           ; Zero extend rax and copy current character into rax
 
-    movzx rax, DWORD [hex_table + rdx * 4]      ; Lookup value in hex_table
+    movzx rax, DWORD [hex_table + rax * 4]      ; Lookup value in hex_table
 
     mov DWORD [buff_out + BUFF_OUT_OFF], eax    ; Write it to buff_out
     add BUFF_OUT_OFF, 0x2                       ; Move BUFF_OUT_OFF ahead by 2 bytes
@@ -294,9 +323,9 @@ padding_loop_tail:
 
 ; Print characters
 print_ascii_tail:
-    movzx rdx, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
+    movzx rax, BYTE [buff + CHAR_COUNT]         ; Zero extend rax and copy current character into it
 
-    movzx rax, BYTE [ascii_table + rdx]         ; Lookup value in ascii_table
+    movzx rax, BYTE [ascii_table + rax]         ; Lookup value in ascii_table
 
     mov BYTE [buff_out + BUFF_OUT_OFF], al      ; Write it to buff_out
     inc BUFF_OUT_OFF                            ; Move BUFF_OUT_OFF ahead by 1 byte
